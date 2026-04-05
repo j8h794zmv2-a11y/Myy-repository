@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grocery List</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 500px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #2d6a4f;
+      margin-bottom: 1.5rem;
+      font-size: 1.8rem;
+    }
+
+    .add-form {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .add-form input[type="text"] {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .add-form input[type="text"]:focus {
+      border-color: #2d6a4f;
+    }
+
+    .add-form select {
+      padding: 0.75rem 0.5rem;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .add-form button {
+      padding: 0.75rem 1.25rem;
+      background: #2d6a4f;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .add-form button:hover { background: #1b4332; }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .controls .filter-buttons {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .controls button {
+      padding: 0.4rem 0.75rem;
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .controls button.active {
+      background: #2d6a4f;
+      color: #fff;
+      border-color: #2d6a4f;
+    }
+
+    .clear-btn {
+      color: #d00;
+      border-color: #d00 !important;
+    }
+
+    .clear-btn:hover { background: #d00 !important; color: #fff !important; }
+
+    .category-group h2 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #666;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 0.5rem;
+    }
+
+    .category-group { margin-bottom: 1rem; }
+
+    .grocery-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: #fff;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      transition: opacity 0.2s;
+    }
+
+    .grocery-item.checked { opacity: 0.5; }
+
+    .grocery-item input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: #2d6a4f;
+      cursor: pointer;
+    }
+
+    .grocery-item .item-name {
+      flex: 1;
+      font-size: 1rem;
+    }
+
+    .grocery-item.checked .item-name {
+      text-decoration: line-through;
+      color: #999;
+    }
+
+    .grocery-item .delete-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 0 0.25rem;
+      transition: color 0.2s;
+    }
+
+    .grocery-item .delete-btn:hover { color: #d00; }
+
+    .empty-state {
+      text-align: center;
+      color: #999;
+      padding: 3rem 1rem;
+      font-size: 1.1rem;
+    }
+
+    .item-count {
+      text-align: center;
+      color: #888;
+      font-size: 0.85rem;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Grocery List</h1>
+
+    <div class="add-form">
+      <input type="text" id="itemInput" placeholder="Add an item..." autofocus>
+      <select id="categorySelect">
+        <option value="Produce">Produce</option>
+        <option value="Dairy">Dairy</option>
+        <option value="Meat">Meat</option>
+        <option value="Bakery">Bakery</option>
+        <option value="Frozen">Frozen</option>
+        <option value="Beverages">Beverages</option>
+        <option value="Snacks">Snacks</option>
+        <option value="Other">Other</option>
+      </select>
+      <button onclick="addItem()">Add</button>
+    </div>
+
+    <div class="controls">
+      <div class="filter-buttons">
+        <button class="active" onclick="setFilter('all', this)">All</button>
+        <button onclick="setFilter('active', this)">Active</button>
+        <button onclick="setFilter('done', this)">Done</button>
+      </div>
+      <button class="clear-btn" onclick="clearCompleted()">Clear done</button>
+    </div>
+
+    <div id="list"></div>
+    <div id="itemCount" class="item-count"></div>
+  </div>
+
+  <script>
+    let items = JSON.parse(localStorage.getItem('groceryItems') || '[]');
+    let filter = 'all';
+
+    function save() {
+      localStorage.setItem('groceryItems', JSON.stringify(items));
+    }
+
+    function addItem() {
+      const input = document.getElementById('itemInput');
+      const name = input.value.trim();
+      if (!name) return;
+
+      items.push({
+        id: Date.now(),
+        name,
+        category: document.getElementById('categorySelect').value,
+        checked: false
+      });
+
+      input.value = '';
+      input.focus();
+      save();
+      render();
+    }
+
+    function toggleItem(id) {
+      const item = items.find(i => i.id === id);
+      if (item) item.checked = !item.checked;
+      save();
+      render();
+    }
+
+    function deleteItem(id) {
+      items = items.filter(i => i.id !== id);
+      save();
+      render();
+    }
+
+    function clearCompleted() {
+      items = items.filter(i => !i.checked);
+      save();
+      render();
+    }
+
+    function setFilter(f, btn) {
+      filter = f;
+      document.querySelectorAll('.filter-buttons button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById('list');
+      const filtered = items.filter(i => {
+        if (filter === 'active') return !i.checked;
+        if (filter === 'done') return i.checked;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="empty-state">No items yet. Add something above!</div>';
+        document.getElementById('itemCount').textContent = '';
+        return;
+      }
+
+      const grouped = {};
+      filtered.forEach(item => {
+        if (!grouped[item.category]) grouped[item.category] = [];
+        grouped[item.category].push(item);
+      });
+
+      const categoryOrder = ['Produce', 'Dairy', 'Meat', 'Bakery', 'Frozen', 'Beverages', 'Snacks', 'Other'];
+      let html = '';
+
+      categoryOrder.forEach(cat => {
+        if (!grouped[cat]) return;
+        html += `<div class="category-group"><h2>${cat}</h2>`;
+        grouped[cat].forEach(item => {
+          html += `
+            <div class="grocery-item ${item.checked ? 'checked' : ''}">
+              <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleItem(${item.id})">
+              <span class="item-name">${escapeHtml(item.name)}</span>
+              <button class="delete-btn" onclick="deleteItem(${item.id})">&times;</button>
+            </div>`;
+        });
+        html += '</div>';
+      });
+
+      list.innerHTML = html;
+
+      const active = items.filter(i => !i.checked).length;
+      const total = items.length;
+      document.getElementById('itemCount').textContent = `${active} of ${total} item${total !== 1 ? 's' : ''} remaining`;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    document.getElementById('itemInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addItem();
+    });
+
+    render();
+  </script>
+</body>
+</html>
